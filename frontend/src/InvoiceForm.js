@@ -84,11 +84,7 @@ const InvoiceForm = () => {
           <div className="flex items-center gap-4">
             {/* Make sure logo is in /public and path is correct */}
             <div className="w-14 h-14 rounded-xl bg-white flex items-center justify-center shadow-md">
-              <img
-                src="/vidwat-logo.png"
-                alt="VIDWAT Logo"
-                className="w-10 h-10 object-contain"
-              />
+             VA
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-white tracking-wide">
