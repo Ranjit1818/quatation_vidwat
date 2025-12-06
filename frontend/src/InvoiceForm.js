@@ -47,7 +47,7 @@ const InvoiceForm = () => {
 
     try {
       const response = await axios.post(
-        "https://invoiceupdate.vercel.app/api/generate-invoice",
+        "http://localhost:5000/api/generate-invoice",
         formData
       );
       console.log("Invoice Generated: ", response.data);
@@ -67,7 +67,7 @@ const InvoiceForm = () => {
           alt="VIDWAT Logo"
           className="w-16 h-16 mr-4"
         />
-        <h1 className="text-3xl font-bold text-white">Invoice Generator</h1>
+        <h1 className="text-3xl font-bold text-white">Quatation Generator</h1>
       </div>
 
       {/* Form */}

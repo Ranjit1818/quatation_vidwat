@@ -48,7 +48,7 @@ const InvoiceForm = () => {
 
     try {
       const response = await axios.post(
-        "https://invoiceupdate.vercel.app/api/generate-invoice",
+        "http://localhost:5000/api/generate-invoice",
         formData,
         {
           responseType: "blob", // Important for handling binary data
@@ -84,7 +84,9 @@ const InvoiceForm = () => {
             alt="VIDWAT Logo"
             className="w-12 h-12 mr-3"
           />
-          <h1 className="text-2xl font-bold text-gray-700">Invoice Generator</h1>
+          <h1 className="text-2xl font-bold text-gray-700">
+            quatation Generator
+          </h1>
         </div>
 
         {/* Form */}
@@ -92,7 +94,7 @@ const InvoiceForm = () => {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-600">
-                Invoice Number:
+                quatation Number:
               </label>
               <input
                 type="text"
@@ -225,7 +227,7 @@ const InvoiceForm = () => {
               type="submit"
               className="py-2 px-4 bg-blue-500 text-white rounded-md shadow-md hover:bg-blue-600 focus:ring focus:ring-blue-300"
             >
-              Generate Invoice
+              Generate quatation
             </button>
           </div>
         </form>
