@@ -48,7 +48,7 @@ const InvoiceForm = () => {
 
     try {
       const response = await axios.post(
-        "https://quatation-vidwat-lkfs.vercel.app/",
+        "https://quatation-vidwat-lkfs.vercel.app/api/generate-invoice",
         formData,
         {
           responseType: "blob", // Important for handling binary data
