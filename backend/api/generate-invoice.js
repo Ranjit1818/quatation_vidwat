@@ -1,7 +1,7 @@
 const handleGenerateInvoice = async () => {
   try {
     const response = await axios.post(
-      "http://localhost:5000/api/generate-invoice",
+      "https://quatation-vidwat-lkfs.vercel.app/api/generate-invoice",
       invoiceData,
       {
         responseType: "blob", // Ensures the response is handled as binary data
