@@ -145,8 +145,7 @@ app.post("/api/generate-invoice", (req, res) => {
     .fontSize(20)
     .font("Helvetica-Bold")
     .text("QUOTATION", margin + 30, 30, {
-      // +10 pushes right, 40 moves up
-      width: contentWidth - 20, // keep centered visually
+      width: contentWidth - 20,
       align: "center",
     });
 
@@ -176,9 +175,8 @@ app.post("/api/generate-invoice", (req, res) => {
 
   const addressBottomY = addrY;
 
-  // Right side: Quotation No & Date (moved more right + slightly down)
-  const infoBlockWidth = 220; // Wider block
-  const infoX = pageWidth - margin - 150; // Moves more RIGHT
+  // Right side: Quotation No & Date
+  const infoX = pageWidth - margin - 150;
   let infoY = 62;
 
   doc
@@ -205,40 +203,30 @@ app.post("/api/generate-invoice", (req, res) => {
     .lineTo(pageWidth - margin, headerBottomY)
     .stroke();
 
-  // ========= BILL TO / SHIP TO BOX =========
+  // ========= "TO" BOX (Single section, no Ship To) =========
 
-  const billShipY = headerBottomY + 15;
-  const boxWidth = pageWidth - 2 * margin;
-  const boxHeight = 90;
-  const columnWidth = boxWidth / 2;
+  const toBoxY = headerBottomY + 15;
+  const toBoxWidth = pageWidth - 2 * margin;
+  const toBoxHeight = 70;
 
-  doc.rect(margin, billShipY - 10, boxWidth, boxHeight).stroke();
-  doc
-    .moveTo(margin + columnWidth, billShipY - 10)
-    .lineTo(margin + columnWidth, billShipY - 10 + boxHeight)
-    .stroke();
+  // Outer box
+  doc.rect(margin, toBoxY - 10, toBoxWidth, toBoxHeight).stroke();
 
+  // Label: To
   doc
     .fontSize(12)
     .font("Helvetica-Bold")
-    .text("Bill To:", margin + 10, billShipY);
-  doc
-    .fontSize(10)
-    .font("Helvetica")
-    .text(bill_to || "N/A", margin + 20, billShipY + 15)
-    .text("Karnataka,", margin + 20, billShipY + 30)
-    .text(gst_num || "", margin + 20, billShipY + 45);
+    .text("To:", margin + 10, toBoxY);
 
-  doc
-    .fontSize(12)
-    .font("Helvetica-Bold")
-    .text("Ship To:", margin + columnWidth + 10, billShipY);
+  // Recipient details
   doc
     .fontSize(10)
     .font("Helvetica")
-    .text(ship_to || "N/A", margin + columnWidth + 20, billShipY + 15)
-    .text("Karnataka,", margin + columnWidth + 20, billShipY + 30)
-    .text(gst_num || "", margin + columnWidth + 20, billShipY + 45);
+    .text(bill_to || "N/A", margin + 25, toBoxY + 15, {
+      width: toBoxWidth - 35,
+    })
+    .text("Karnataka,", margin + 25, toBoxY + 30)
+    .text(gst_num || "", margin + 25, toBoxY + 45);
 
   // ========= ITEMS TABLE =========
 
@@ -263,7 +251,7 @@ app.post("/api/generate-invoice", (req, res) => {
   };
 
   // Table Header
-  let tableStartY = billShipY + boxHeight + 20;
+  let tableStartY = toBoxY + toBoxHeight + 20;
   tableStartY = drawRow(
     ["SL", "ITEM DESCRIPTION", "RATE/ITEM", "QUANTITY", "AMOUNT"],
     tableStartY,
