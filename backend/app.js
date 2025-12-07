@@ -87,18 +87,24 @@ app.post("/api/generate-invoice", (req, res) => {
   const { invoice_num, bill_to, ship_to, gst_num, items } = req.body;
 
   // Basic validation
-  if (
-    !invoice_num ||
-    !bill_to ||
-    !ship_to ||
-    !gst_num ||
-    !Array.isArray(items) ||
-    items.length === 0
-  ) {
-    return res
-      .status(400)
-      .json({ error: "Missing or invalid required fields" });
-  }
+
+
+// ship_to is OPTIONAL now
+if (
+  !invoice_num ||
+  !bill_to ||
+  !gst_num ||
+  !Array.isArray(items) ||
+  items.length === 0
+) {
+  return res
+    .status(400)
+    .json({ error: "Missing or invalid required fields" });
+}
+
+// Use a safe value for ship_to if it’s empty
+const shipToSafe = ship_to && ship_to.trim() !== "" ? ship_to : bill_to;
+
 
   for (const item of items) {
     if (
