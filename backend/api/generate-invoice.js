@@ -4,7 +4,7 @@ const handleGenerateInvoice = async () => {
       "https://quatation-vidwat-lkfs.vercel.app/api/generate-invoice",
       invoiceData,
       {
-        responseType: "blob", // Ensures the response is handled as binary data
+        responseType: "blob", // PDF
       }
     );
 
@@ -15,7 +15,22 @@ const handleGenerateInvoice = async () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
+    window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error("Error generating invoice:", error);
+
+    // 🔍 Axios-specific logging
+    if (axios.isAxiosError(error)) {
+      console.log("Status:", error.response?.status);
+      console.log("Response data:", error.response?.data);
+
+      const message =
+        error.response?.data?.error ||
+        error.response?.data ||
+        "Server error while generating invoice";
+      alert(message);
+    } else {
+      alert("Unexpected error while generating invoice");
+    }
   }
 };
