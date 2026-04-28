@@ -10,7 +10,8 @@ const QuotationTable = () => {
 
   const fetchQuotations = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/quotations");
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const response = await axios.get(`${API_URL}/api/quotations`);
       setQuotations(response.data);
       setLoading(false);
     } catch (err) {
@@ -26,7 +27,8 @@ const QuotationTable = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this quotation?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/quotations/${id}`);
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      await axios.delete(`${API_URL}/api/quotations/${id}`);
       setQuotations(quotations.filter((q) => q._id !== id));
     } catch (err) {
       alert("Failed to delete quotation.");
