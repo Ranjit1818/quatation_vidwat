@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
+import { Database } from "lucide-react";
 
 const InvoiceForm = () => {
   const [formData, setFormData] = useState({
@@ -47,8 +49,9 @@ const InvoiceForm = () => {
     e.preventDefault();
 
     try {
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
       const response = await axios.post(
-        "https://quatation-vidwat-lkfs.vercel.app/api/generate-invoice",
+        `${API_URL}/api/generate-invoice`,
         formData,
         {
           responseType: "blob", // for PDF download
@@ -286,10 +289,15 @@ const InvoiceForm = () => {
 
             {/* Actions */}
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-4 border-t border-slate-700/80 mt-4">
-              <p className="text-xs text-slate-400">
-                Review all line items and client details before generating the
-                quotation PDF.
-              </p>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/data"
+                  className="inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-sm font-semibold transition"
+                >
+                  <Database className="w-4 h-4" />
+                  View Complete Data
+                </Link>
+              </div>
               <button
                 type="submit"
                 className="inline-flex justify-center items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 text-white text-sm font-semibold shadow-lg hover:from-sky-400 hover:to-indigo-400 active:scale-[0.98] transition"

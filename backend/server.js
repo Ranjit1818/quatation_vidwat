@@ -1,14 +1,23 @@
 // server.js
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
+const mongoose = require("mongoose");
+const Quotation = require("./models/Quotation");
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+
+// Connect to MongoDB
+mongoose
+  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/vidwat_quotation")
+  .then(() => console.log("Connected to MongoDB"))
+  .catch((err) => console.error("MongoDB connection error:", err));
 
 // Number → words (Indian format)
 function numberToWordsIndian(num) {
@@ -83,14 +92,13 @@ function numberToWordsIndian(num) {
 
 // ============ MAIN ENDPOINT ============
 
-app.post("/api/generate-invoice", (req, res) => {
+app.post("/api/generate-invoice", async (req, res) => {
   const { invoice_num, bill_to, ship_to, gst_num, items } = req.body;
 
   // Basic validation
   if (
     !invoice_num ||
     !bill_to ||
-    !ship_to ||
     !gst_num ||
     !Array.isArray(items) ||
     items.length === 0
@@ -99,6 +107,9 @@ app.post("/api/generate-invoice", (req, res) => {
       .status(400)
       .json({ error: "Missing or invalid required fields" });
   }
+
+  // Use a safe value for ship_to if it's empty
+  const shipToSafe = ship_to && ship_to.trim() !== "" ? ship_to : bill_to;
 
   for (const item of items) {
     if (
@@ -121,6 +132,21 @@ app.post("/api/generate-invoice", (req, res) => {
 
   const amountInWords =
     numberToWordsIndian(Math.round(totalAmount)) + " Rupees Only";
+
+  try {
+    // Save to DB
+    const newQuotation = new Quotation({
+      invoice_num,
+      bill_to,
+      ship_to,
+      gst_num,
+      items,
+    });
+    await newQuotation.save();
+  } catch (error) {
+    console.error("Error saving quotation to DB:", error);
+    return res.status(500).json({ error: "Failed to save data to database" });
+  }
 
   // Create PDF
   const doc = new PDFDocument({ margin: 50 });
@@ -236,7 +262,7 @@ app.post("/api/generate-invoice", (req, res) => {
   doc
     .fontSize(10)
     .font("Helvetica")
-    .text(ship_to || "N/A", margin + columnWidth + 20, billShipY + 15)
+    .text(shipToSafe || "N/A", margin + columnWidth + 20, billShipY + 15)
     .text("Karnataka,", margin + columnWidth + 20, billShipY + 30)
     .text(gst_num || "", margin + columnWidth + 20, billShipY + 45);
 
@@ -367,8 +393,29 @@ app.post("/api/generate-invoice", (req, res) => {
   doc.end();
 });
 
+// ============ GET ALL QUOTATIONS ============
+app.get("/api/quotations", async (req, res) => {
+  try {
+    const quotations = await Quotation.find().sort({ createdAt: -1 });
+    res.json(quotations);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch quotations" });
+  }
+});
+
+// ============ DELETE QUOTATION ============
+app.delete("/api/quotations/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Quotation.findByIdAndDelete(id);
+    res.json({ message: "Quotation deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete quotation" });
+  }
+});
+
 // Start server
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
