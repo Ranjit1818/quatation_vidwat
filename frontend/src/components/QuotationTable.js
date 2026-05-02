@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { Trash2, ArrowLeft, Loader2, FileText } from "lucide-react";
+import { Trash2, ArrowLeft, Loader2, FileText, Download } from "lucide-react";
 
 const QuotationTable = () => {
   const [quotations, setQuotations] = useState([]);
@@ -32,6 +32,35 @@ const QuotationTable = () => {
       setQuotations(quotations.filter((q) => q._id !== id));
     } catch (err) {
       alert("Failed to delete quotation.");
+    }
+  };
+
+  const handleDownload = async (quotation) => {
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const payload = {
+        ...quotation,
+        isRegenerate: true
+      };
+      
+      const response = await axios.post(
+        `${API_URL}/api/generate-invoice`,
+        payload,
+        { responseType: "blob" }
+      );
+      
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `quotation_${quotation.invoice_num || "invoice"}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading pdf:", error);
+      alert("Failed to download PDF.");
     }
   };
 
@@ -119,13 +148,22 @@ const QuotationTable = () => {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <button
-                          onClick={() => handleDelete(q._id)}
-                          className="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleDownload(q)}
+                            className="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            title="Download PDF"
+                          >
+                            <Download className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(q._id)}
+                            className="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

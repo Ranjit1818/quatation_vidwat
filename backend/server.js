@@ -93,7 +93,7 @@ function numberToWordsIndian(num) {
 // ============ MAIN ENDPOINT ============
 
 app.post("/api/generate-invoice", async (req, res) => {
-  const { invoice_num, bill_to, ship_to, gst_num, items } = req.body;
+  const { invoice_num, bill_to, ship_to, gst_num, items, isRegenerate, createdAt } = req.body;
 
   // Basic validation
   if (
@@ -134,15 +134,17 @@ app.post("/api/generate-invoice", async (req, res) => {
     numberToWordsIndian(Math.round(totalAmount)) + " Rupees Only";
 
   try {
-    // Save to DB
-    const newQuotation = new Quotation({
-      invoice_num,
-      bill_to,
-      ship_to,
-      gst_num,
-      items,
-    });
-    await newQuotation.save();
+    // Save to DB only if it's a new quotation
+    if (!isRegenerate) {
+      const newQuotation = new Quotation({
+        invoice_num,
+        bill_to,
+        ship_to,
+        gst_num,
+        items,
+      });
+      await newQuotation.save();
+    }
   } catch (error) {
     console.error("Error saving quotation to DB:", error);
     return res.status(500).json({ error: "Failed to save data to database" });
@@ -218,9 +220,11 @@ app.post("/api/generate-invoice", async (req, res) => {
   doc
     .font("Helvetica-Bold")
     .text("Quotation Date:", infoX, infoY, { continued: false });
+  
+  const displayDate = createdAt ? new Date(createdAt).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB");
   doc
     .font("Helvetica")
-    .text(new Date().toLocaleDateString("en-GB"), infoX + 80, infoY);
+    .text(displayDate, infoX + 80, infoY);
 
   const infoBottomY = infoY + 10;
 
