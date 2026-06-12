@@ -20,3 +20,4 @@ const quotationSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("Quotation", quotationSchema);
+  
