@@ -11,7 +11,7 @@ const path = require("path");
 const generateInvoicePDF = (data, res) => {
   return new Promise((resolve, reject) => {
     try {
-      const { invoice_num, bill_to, shipToSafe, gst_num, items, totalAmount, amountInWords, createdAt } = data;
+      const { invoice_num, bill_to, shipToSafe, gst_num, items, totalAmount, gstPercent, gstAmount, grandTotal, amountInWords, terms_conditions, createdAt } = data;
 
       const doc = new PDFDocument({ margin: 50 });
 
@@ -119,16 +119,33 @@ const generateInvoicePDF = (data, res) => {
 
       // ========= SUMMARY =========
       const summaryColWidths = [200, pageWidth - margin * 2 - 200];
-      doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
-      doc.font("Helvetica-Bold").text("Amount Payable", margin + 5, tableStartY + 5);
-      doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
-      doc.text(totalAmount.toFixed(2), margin + summaryColWidths[0] + 5, tableStartY + 5);
 
+      // Subtotal row
+      doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
+      doc.font("Helvetica-Bold").text("Subtotal", margin + 5, tableStartY + 5);
+      doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
+      doc.font("Helvetica").text(totalAmount.toFixed(2), margin + summaryColWidths[0] + 5, tableStartY + 5);
+
+      // GST row
       tableStartY += rowHeight;
       doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
-      doc.text("In Words", margin + 5, tableStartY + 5);
+      doc.font("Helvetica-Bold").text(`GST (${gstPercent}%)`, margin + 5, tableStartY + 5);
       doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
-      doc.text(amountInWords, margin + summaryColWidths[0] + 5, tableStartY + 5, { width: summaryColWidths[1] - 10 });
+      doc.font("Helvetica").text(gstAmount.toFixed(2), margin + summaryColWidths[0] + 5, tableStartY + 5);
+
+      // Grand Total row
+      tableStartY += rowHeight;
+      doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
+      doc.font("Helvetica-Bold").text("Grand Total (Incl. GST)", margin + 5, tableStartY + 5);
+      doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
+      doc.font("Helvetica-Bold").text(grandTotal.toFixed(2), margin + summaryColWidths[0] + 5, tableStartY + 5);
+
+      // Amount in words row
+      tableStartY += rowHeight;
+      doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
+      doc.font("Helvetica-Bold").text("In Words", margin + 5, tableStartY + 5);
+      doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
+      doc.font("Helvetica").text(amountInWords, margin + summaryColWidths[0] + 5, tableStartY + 5, { width: summaryColWidths[1] - 10 });
 
       // ========= BANK DETAILS =========
       let bankDetailsY = tableStartY + rowHeight + 20;
@@ -142,13 +159,26 @@ const generateInvoicePDF = (data, res) => {
       doc.text("IFSC: ", bankDetailsX, bankDetailsY + 48);
       doc.text("KARB0000935", bankDetailsX + 42, bankDetailsY + 48);
 
-      // ========= FOOTER =========
+      // ========= TERMS AND CONDITIONS =========
       const footerY = Math.max(500, bankDetailsY + 20);
-      doc.fontSize(10).font("Helvetica-Bold").text("Terms and Conditions:", margin, footerY + 96)
-        .font("Helvetica")
-        .text("1. All payments should be made electronically in the name of Vidwat Associates.", margin, footerY + 112)
-        .text("2. All disputes shall be subjected to jurisdiction of Vijayapur.", margin, footerY + 127)
-        .text("3. This invoice is subjected to the terms and conditions mentioned in the agreement or work order.", margin, footerY + 142);
+      doc.fontSize(10).font("Helvetica-Bold").text("Terms and Conditions:", margin, footerY + 96);
+
+      if (terms_conditions && terms_conditions.trim() !== "") {
+        // Use custom terms from user input
+        const termsLines = terms_conditions.split("\n").filter(line => line.trim() !== "");
+        let termsY = footerY + 112;
+        doc.font("Helvetica");
+        termsLines.forEach((line) => {
+          doc.text(line.trim(), margin, termsY);
+          termsY += 15;
+        });
+      } else {
+        // Default terms
+        doc.font("Helvetica")
+          .text("1. All payments should be made electronically in the name of Vidwat Associates.", margin, footerY + 112)
+          .text("2. All disputes shall be subjected to jurisdiction of Vijayapur.", margin, footerY + 127)
+          .text("3. This invoice is subjected to the terms and conditions mentioned in the agreement or work order.", margin, footerY + 142);
+      }
 
       try {
         const signImagePath = path.join(__dirname, "..", "assets", "vidwat_sign.png");

@@ -8,6 +8,8 @@ const InvoiceForm = () => {
     invoice_num: "",
     bill_to: "",
     gst_num: "",
+    gst_percentage: "",
+    terms_conditions: "",
     items: [
       {
         item_desc: "",
@@ -93,7 +95,7 @@ const InvoiceForm = () => {
                 VIDWAT ASSOCIATES
               </h1>
               <p className="text-sm text-slate-500 font-medium">
-                Quotation &amp; Invoice Generator
+                Quotation  
               </p>
             </div>
           </div>
@@ -143,6 +145,22 @@ const InvoiceForm = () => {
                     value={formData.gst_num}
                     onChange={handleChange}
                     placeholder="e.g. 29ABCDE1234F1Z5"
+                    className="w-full rounded-lg border border-slate-200 bg-white text-slate-900 placeholder-slate-400 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 shadow-sm transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    GST Percentage (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="gst_percentage"
+                    value={formData.gst_percentage}
+                    onChange={handleChange}
+                    placeholder="e.g. 18"
+                    min="0"
+                    max="100"
+                    step="0.01"
                     className="w-full rounded-lg border border-slate-200 bg-white text-slate-900 placeholder-slate-400 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 shadow-sm transition-all"
                   />
                 </div>
@@ -284,6 +302,24 @@ const InvoiceForm = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Terms and Conditions */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold tracking-wide text-slate-800 uppercase">
+                Terms and Conditions
+              </h3>
+              <textarea
+                name="terms_conditions"
+                value={formData.terms_conditions}
+                onChange={handleChange}
+                placeholder="Enter terms and conditions (one per line)&#10;e.g.&#10;1. All payments should be made electronically.&#10;2. Disputes subject to Vijayapur jurisdiction."
+                rows="4"
+                className="w-full rounded-lg border border-slate-200 bg-white text-slate-900 placeholder-slate-400 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 shadow-sm transition-all resize-y"
+              />
+              <p className="text-[11px] text-slate-400">
+                Leave blank to use default terms and conditions.
+              </p>
             </div>
 
             {/* Actions */}

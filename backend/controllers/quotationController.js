@@ -7,7 +7,7 @@ const connectDB = require("../config/db");
 const generateInvoice = async (req, res) => {
   try {
     await connectDB();
-    const { invoice_num, bill_to, ship_to, gst_num, items, isRegenerate, createdAt } = req.body;
+    const { invoice_num, bill_to, ship_to, gst_num, gst_percentage, terms_conditions, items, isRegenerate, createdAt } = req.body;
 
     // Basic validation
     if (!invoice_num || !bill_to || !gst_num || !Array.isArray(items) || items.length === 0) {
@@ -28,7 +28,11 @@ const generateInvoice = async (req, res) => {
       return sum + qty * rate;
     }, 0);
 
-    const amountInWords = numberToWordsIndian(Math.round(totalAmount)) + " Rupees Only";
+    const gstPercent = Number(gst_percentage) || 0;
+    const gstAmount = (totalAmount * gstPercent) / 100;
+    const grandTotal = totalAmount + gstAmount;
+
+    const amountInWords = numberToWordsIndian(Math.round(grandTotal)) + " Rupees Only";
 
     // Save to DB only if it's a new quotation
     if (!isRegenerate) {
@@ -37,6 +41,8 @@ const generateInvoice = async (req, res) => {
         bill_to,
         ship_to,
         gst_num,
+        gst_percentage: gstPercent,
+        terms_conditions: terms_conditions || "",
         items,
       });
       await newQuotation.save();
@@ -50,7 +56,11 @@ const generateInvoice = async (req, res) => {
       gst_num,
       items,
       totalAmount,
+      gstPercent,
+      gstAmount,
+      grandTotal,
       amountInWords,
+      terms_conditions: terms_conditions || "",
       createdAt
     }, res);
 

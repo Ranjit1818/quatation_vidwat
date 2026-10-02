@@ -90,7 +90,7 @@ const InvoiceForm = () => {
                 VIDWAT ASSOCIATES
               </h1>
               <p className="text-sm text-slate-500 font-medium">
-                Quotation &amp; Invoice Generator
+                Quotation &amp;
               </p>
             </div>
           </div>

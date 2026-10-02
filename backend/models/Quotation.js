@@ -14,6 +14,8 @@ const quotationSchema = new mongoose.Schema(
     bill_to: { type: String, required: true },
     ship_to: { type: String, default: "" },
     gst_num: { type: String, required: true },
+    gst_percentage: { type: Number, default: 0 },
+    terms_conditions: { type: String, default: "" },
     items: [itemSchema],
   },
   { timestamps: true }
