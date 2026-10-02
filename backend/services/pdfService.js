@@ -3,7 +3,9 @@ const fs = require("fs");
 const path = require("path");
 
 /**
- * Generates a PDF buffer using pdfkit
+ * Generates a PDF buffer using pdfkit.
+ * Fully dynamic layout — content flows across pages automatically.
+ *
  * @param {Object} data - The invoice data
  * @param {Object} res - Express response object (to pipe the PDF)
  * @returns {Promise} - Resolves when PDF generation is finished
@@ -11,9 +13,15 @@ const path = require("path");
 const generateInvoicePDF = (data, res) => {
   return new Promise((resolve, reject) => {
     try {
-      const { invoice_num, bill_to, shipToSafe, gst_num, items, totalAmount, gstPercent, gstAmount, grandTotal, amountInWords, terms_conditions, createdAt } = data;
+      const {
+        invoice_num, bill_to, shipToSafe, gst_num, items,
+        totalAmount, gstPercent, gstAmount, grandTotal,
+        amountInWords, terms_conditions, createdAt
+      } = data;
 
-      const doc = new PDFDocument({ margin: 50 });
+      const doc = new PDFDocument({ 
+        margins: { top: 50, bottom: 0, left: 50, right: 50 } 
+      });
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
@@ -23,12 +31,30 @@ const generateInvoicePDF = (data, res) => {
 
       doc.pipe(res);
 
+      // ── Page constants ──
       const pageWidth = 595;
+      const pageHeight = 842;
       const margin = 50;
-      const rowHeight = 25;
       const contentWidth = pageWidth - 2 * margin;
+      const bottomLimit = pageHeight - 60; // stop drawing 60px from bottom
 
-      // ========= HEADER =========
+      // ── Single flowing cursor ──
+      let Y = margin;
+
+      /**
+       * Ensure there is enough room for `needed` px on the current page.
+       * If not, add a new page and reset Y to the top margin.
+       */
+      const ensureSpace = (needed) => {
+        if (Y + needed > bottomLimit) {
+          doc.addPage({ margins: { top: 50, bottom: 0, left: 50, right: 50 } });
+          Y = margin;
+        }
+      };
+
+      // =========================================================
+      //  HEADER
+      // =========================================================
       doc
         .fontSize(20)
         .font("Helvetica-Bold")
@@ -37,153 +63,199 @@ const generateInvoicePDF = (data, res) => {
           align: "center",
         });
 
-      let addrY = 60;
-      doc.fontSize(18).font("Helvetica-Bold").text("VIDWAT ASSOCIATES", margin, addrY);
-      addrY += 18;
-      doc.fontSize(10).font("Helvetica").text("#33, Arvind Nagar", margin, addrY);
-      addrY += 13;
-      doc.text("Near Veer Savarkar Circle", margin, addrY);
-      addrY += 13;
-      doc.text("Vijayapur 586101, Karnataka, India", margin, addrY);
-      addrY += 13;
-      doc.text("PAN: AAZFV2824J", margin, addrY);
-      addrY += 13;
-      doc.text("GST: 29AAZFV2824J1ZB", margin, addrY);
-      addrY += 13;
-      doc.text("Email: vidwatassociates@gmail.com", margin, addrY);
-      addrY += 13;
-      doc.text("Phone: 7892787054", margin, addrY);
-      addrY += 10;
+      Y = 60;
+      doc.fontSize(18).font("Helvetica-Bold").text("VIDWAT ASSOCIATES", margin, Y);
+      Y += 20;
+      doc.fontSize(10).font("Helvetica");
+      const addressLines = [
+        "#33, Arvind Nagar",
+        "Near Veer Savarkar Circle",
+        "Vijayapur 586101, Karnataka, India",
+        "PAN: AAZFV2824J",
+        "GST: 29AAZFV2824J1ZB",
+        "Email: vidwatassociates@gmail.com",
+        "Phone: 7892787054",
+      ];
+      addressLines.forEach((line) => {
+        doc.text(line, margin, Y);
+        Y += 13;
+      });
+      Y += 2;
 
-      const addressBottomY = addrY;
+      const addressBottomY = Y;
 
+      // Right-side quotation info
       const infoX = pageWidth - margin - 150;
       let infoY = 62;
-
       doc.fontSize(10).font("Helvetica-Bold").text("Quotation No:", infoX, infoY);
       doc.font("Helvetica").text(String(invoice_num || ""), infoX + 80, infoY);
       infoY += 14;
-
       doc.font("Helvetica-Bold").text("Quotation Date:", infoX, infoY);
-      const displayDate = createdAt ? new Date(createdAt).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB");
+      const displayDate = createdAt
+        ? new Date(createdAt).toLocaleDateString("en-GB")
+        : new Date().toLocaleDateString("en-GB");
       doc.font("Helvetica").text(displayDate, infoX + 80, infoY);
 
-      const infoBottomY = infoY + 10;
-      const headerBottomY = Math.max(addressBottomY, infoBottomY) + 10;
+      const headerBottomY = Math.max(addressBottomY, infoY + 10) + 10;
       doc.moveTo(margin, headerBottomY).lineTo(pageWidth - margin, headerBottomY).stroke();
 
-      // ========= BILL TO BOX =========
+      // =========================================================
+      //  BILL TO BOX
+      // =========================================================
       const billShipY = headerBottomY + 15;
-      const boxWidth = pageWidth - 2 * margin;
       const boxHeight = 90;
 
-      doc.rect(margin, billShipY - 10, boxWidth, boxHeight).stroke();
-
+      doc.rect(margin, billShipY - 10, contentWidth, boxHeight).stroke();
       doc.fontSize(12).font("Helvetica-Bold").text("To:", margin + 10, billShipY);
       doc.fontSize(10).font("Helvetica")
         .text(bill_to || "N/A", margin + 20, billShipY + 15)
         .text("Karnataka,", margin + 20, billShipY + 30)
         .text(gst_num || "", margin + 20, billShipY + 45);
 
-      // ========= ITEMS TABLE =========
+      Y = billShipY + boxHeight + 20;
+
+      // =========================================================
+      //  ITEMS TABLE
+      // =========================================================
       const colWidths = [40, 160, 100, 100, 100];
-      const drawRow = (columns, y, bold = false) => {
-        let x = margin;
-        if (bold) doc.font("Helvetica-Bold");
-        else doc.font("Helvetica");
 
-        const colHeights = columns.map((col, i) =>
-          doc.heightOfString(col, { width: colWidths[i] - 10 })
+      /** Measure the height a row needs (without drawing). */
+      const measureRow = (cols, bold) => {
+        doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(10);
+        const heights = cols.map((c, i) =>
+          doc.heightOfString(c, { width: colWidths[i] - 10 })
         );
-        const rowHeightDynamic = Math.max(...colHeights) + 10;
-
-        columns.forEach((col, i) => {
-          doc.rect(x, y, colWidths[i], rowHeightDynamic).stroke();
-          doc.text(col, x + 5, y + 5, { width: colWidths[i] - 10 });
-          x += colWidths[i];
-        });
-        return y + rowHeightDynamic;
+        return Math.max(...heights) + 10;
       };
 
-      let tableStartY = billShipY + boxHeight + 20;
-      tableStartY = drawRow(["SL", "ITEM DESCRIPTION", "RATE/ITEM", "QUANTITY", "AMOUNT"], tableStartY, true);
+      /** Draw a table row at current Y, return height consumed. */
+      const drawRow = (cols, bold) => {
+        const h = measureRow(cols, bold);
+        let x = margin;
+        doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(10);
+        cols.forEach((c, i) => {
+          doc.rect(x, Y, colWidths[i], h).stroke();
+          doc.text(c, x + 5, Y + 5, { width: colWidths[i] - 10 });
+          x += colWidths[i];
+        });
+        Y += h;
+      };
 
-      items.forEach((item, index) => {
+      // Table header
+      const headerCols = ["SL", "ITEM DESCRIPTION", "RATE/ITEM", "QUANTITY", "AMOUNT"];
+      ensureSpace(measureRow(headerCols, true));
+      drawRow(headerCols, true);
+
+      // Item rows
+      items.forEach((item, idx) => {
         const qty = Number(item.qty);
         const rate = Number(item.rate_item);
         const amount = (qty * rate).toFixed(2);
-        tableStartY = drawRow([`${index + 1}`, `${item.item_desc}`, `${rate.toFixed(2)}`, `${qty}`, `${amount}`], tableStartY);
+        const cols = [
+          `${idx + 1}`,
+          `${item.item_desc}`,
+          `${rate.toFixed(2)}`,
+          `${qty}`,
+          `${amount}`,
+        ];
+        ensureSpace(measureRow(cols, false));
+        drawRow(cols, false);
       });
 
-      tableStartY += 20;
+      Y += 20;
 
-      // ========= SUMMARY =========
-      const summaryColWidths = [200, pageWidth - margin * 2 - 200];
+      // =========================================================
+      //  SUMMARY ROWS
+      // =========================================================
+      const sumLabelW = 200;
+      const sumValueW = contentWidth - sumLabelW;
+      const rowH = 25;
 
-      // Subtotal row
-      doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
-      doc.font("Helvetica-Bold").text("Subtotal", margin + 5, tableStartY + 5);
-      doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
-      doc.font("Helvetica").text(totalAmount.toFixed(2), margin + summaryColWidths[0] + 5, tableStartY + 5);
+      const drawSummaryRow = (label, value, valueBold = false) => {
+        ensureSpace(rowH);
+        // label cell
+        doc.rect(margin, Y, sumLabelW, rowH).stroke();
+        doc.font("Helvetica-Bold").fontSize(10).text(label, margin + 5, Y + 5);
+        // value cell
+        doc.rect(margin + sumLabelW, Y, sumValueW, rowH).stroke();
+        doc.font(valueBold ? "Helvetica-Bold" : "Helvetica").fontSize(10);
+        doc.text(value, margin + sumLabelW + 5, Y + 5, { width: sumValueW - 10 });
+        Y += rowH;
+      };
 
-      // GST row
-      tableStartY += rowHeight;
-      doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
-      doc.font("Helvetica-Bold").text(`GST (${gstPercent}%)`, margin + 5, tableStartY + 5);
-      doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
-      doc.font("Helvetica").text(gstAmount.toFixed(2), margin + summaryColWidths[0] + 5, tableStartY + 5);
+      drawSummaryRow("Subtotal", totalAmount.toFixed(2));
+      drawSummaryRow(`GST (${gstPercent}%)`, gstAmount.toFixed(2));
+      drawSummaryRow("Grand Total (Incl. GST)", grandTotal.toFixed(2), true);
+      drawSummaryRow("In Words", amountInWords);
 
-      // Grand Total row
-      tableStartY += rowHeight;
-      doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
-      doc.font("Helvetica-Bold").text("Grand Total (Incl. GST)", margin + 5, tableStartY + 5);
-      doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
-      doc.font("Helvetica-Bold").text(grandTotal.toFixed(2), margin + summaryColWidths[0] + 5, tableStartY + 5);
+      // =========================================================
+      //  BANK DETAILS  (fully dynamic, line-by-line)
+      // =========================================================
+      Y += 15;
 
-      // Amount in words row
-      tableStartY += rowHeight;
-      doc.rect(margin, tableStartY, summaryColWidths[0], rowHeight).stroke();
-      doc.font("Helvetica-Bold").text("In Words", margin + 5, tableStartY + 5);
-      doc.rect(margin + summaryColWidths[0], tableStartY, summaryColWidths[1], rowHeight).stroke();
-      doc.font("Helvetica").text(amountInWords, margin + summaryColWidths[0] + 5, tableStartY + 5, { width: summaryColWidths[1] - 10 });
+      const bankLines = [
+        { label: "Bank Details:", value: "VIDWAT ASSOCIATES", labelBold: true },
+        { label: "", value: "Karnataka Bank" },
+        { label: "A/c No:", value: "0935202400004001" },
+        { label: "IFSC:", value: "KARB0000935" },
+      ];
 
-      // ========= BANK DETAILS =========
-      let bankDetailsY = tableStartY + rowHeight + 20;
-      doc.fontSize(11).font("Helvetica-Bold").text("Bank Details:", margin, bankDetailsY);
+      const lineH = 16;
+      const bankBlockH = bankLines.length * lineH;
+      ensureSpace(bankBlockH);
 
-      const bankDetailsX = margin + 80;
-      doc.fontSize(11).font("Helvetica").text("VIDWAT ASSOCIATES", bankDetailsX, bankDetailsY);
-      doc.text("Karnataka Bank", bankDetailsX, bankDetailsY + 16);
-      doc.text("A/c No: ", bankDetailsX, bankDetailsY + 32);
-      doc.text("0935202400004001", bankDetailsX + 42, bankDetailsY + 32);
-      doc.text("IFSC: ", bankDetailsX, bankDetailsY + 48);
-      doc.text("KARB0000935", bankDetailsX + 42, bankDetailsY + 48);
+      bankLines.forEach((bLine) => {
+        ensureSpace(lineH);
+        doc.fontSize(11);
+        if (bLine.labelBold) {
+          doc.font("Helvetica-Bold").text(bLine.label, margin, Y);
+          doc.font("Helvetica").text(bLine.value, margin + 80, Y);
+        } else if (bLine.label) {
+          doc.font("Helvetica-Bold").text(bLine.label, margin + 80, Y);
+          doc.font("Helvetica").text(bLine.value, margin + 80 + doc.widthOfString(bLine.label + " "), Y);
+        } else {
+          doc.font("Helvetica").text(bLine.value, margin + 80, Y);
+        }
+        Y += lineH;
+      });
 
-      // ========= TERMS AND CONDITIONS =========
-      const footerY = Math.max(500, bankDetailsY + 20);
-      doc.fontSize(10).font("Helvetica-Bold").text("Terms and Conditions:", margin, footerY + 96);
+      // =========================================================
+      //  TERMS AND CONDITIONS  (dynamic, line-by-line)
+      // =========================================================
+      Y += 20;
+      ensureSpace(30);
+      doc.fontSize(10).font("Helvetica-Bold").text("Terms and Conditions:", margin, Y);
+      Y += 16;
 
-      if (terms_conditions && terms_conditions.trim() !== "") {
-        // Use custom terms from user input
-        const termsLines = terms_conditions.split("\n").filter(line => line.trim() !== "");
-        let termsY = footerY + 112;
-        doc.font("Helvetica");
-        termsLines.forEach((line) => {
-          doc.text(line.trim(), margin, termsY);
-          termsY += 15;
-        });
-      } else {
-        // Default terms
-        doc.font("Helvetica")
-          .text("1. All payments should be made electronically in the name of Vidwat Associates.", margin, footerY + 112)
-          .text("2. All disputes shall be subjected to jurisdiction of Vijayapur.", margin, footerY + 127)
-          .text("3. This invoice is subjected to the terms and conditions mentioned in the agreement or work order.", margin, footerY + 142);
-      }
+      const termsLines = (terms_conditions && terms_conditions.trim() !== "")
+        ? terms_conditions.split("\n").filter((l) => l.trim() !== "")
+        : [
+            "1. All payments should be made electronically in the name of Vidwat Associates.",
+            "2. All disputes shall be subjected to jurisdiction of Vijayapur.",
+            "3. This invoice is subjected to the terms and conditions mentioned in the agreement or work order.",
+          ];
 
+      doc.font("Helvetica").fontSize(10);
+      termsLines.forEach((line) => {
+        const h = doc.heightOfString(line.trim(), { width: contentWidth }) + 4;
+        ensureSpace(h);
+        doc.text(line.trim(), margin, Y, { width: contentWidth });
+        Y += h;
+      });
+
+      // =========================================================
+      //  SIGNATURE
+      // =========================================================
       try {
         const signImagePath = path.join(__dirname, "..", "assets", "vidwat_sign.png");
         if (fs.existsSync(signImagePath)) {
-          doc.image(signImagePath, pageWidth - margin - 150, footerY + 200, { width: 100, height: 50 });
+          Y += 20;
+          ensureSpace(60);
+          doc.image(signImagePath, pageWidth - margin - 150, Y, {
+            width: 100,
+            height: 50,
+          });
+          Y += 55;
         }
       } catch (imgError) {
         console.error("Error loading signature image:", imgError.message);
